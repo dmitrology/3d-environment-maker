@@ -1,22 +1,26 @@
 "use client"
 
 import { useState } from "react"
-import ClientOnlyScene from "@/components/ClientOnlyScene"
+import PromptToModel from "@/components/prompt-to-model"
 
 export default function Home() {
-  const [sceneType, setSceneType] = useState("fantasy")
-  const [lighting, setLighting] = useState("day")
+  const [prompt, setPrompt] = useState("")
+  const [activePrompt, setActivePrompt] = useState("")
+  const [lighting, setLighting] = useState("studio")
   const [isGenerating, setIsGenerating] = useState(false)
-  const [modelUrl, setModelUrl] = useState("/models/duck.glb")
 
-  // Handle scene generation
   const handleGenerateScene = () => {
+    if (!prompt.trim()) return
+
     setIsGenerating(true)
 
-    // Simulate API call or processing time
+    // Set the active prompt that will be used for model search
+    setActivePrompt(prompt)
+
+    // Simulate processing time
     setTimeout(() => {
       setIsGenerating(false)
-    }, 1000)
+    }, 500)
   }
 
   return (
@@ -32,17 +36,13 @@ export default function Home() {
             <h2 className="font-medium mb-4">Scene Controls</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm mb-1">Scene Type</label>
-                <select
-                  className="w-full bg-gray-800 rounded p-2 text-sm"
-                  value={sceneType}
-                  onChange={(e) => setSceneType(e.target.value)}
-                >
-                  <option value="abstract">Abstract</option>
-                  <option value="nature">Nature</option>
-                  <option value="sci-fi">Sci-Fi</option>
-                  <option value="fantasy">Fantasy</option>
-                </select>
+                <label className="block text-sm mb-1">Prompt</label>
+                <textarea
+                  className="w-full bg-gray-800 rounded p-2 text-sm h-24"
+                  placeholder="Enter a description of what you want to see..."
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
               </div>
 
               <div>
@@ -52,10 +52,15 @@ export default function Home() {
                   value={lighting}
                   onChange={(e) => setLighting(e.target.value)}
                 >
-                  <option value="sunset">Sunset</option>
                   <option value="studio">Studio</option>
+                  <option value="sunset">Sunset</option>
+                  <option value="dawn">Dawn</option>
                   <option value="night">Night</option>
-                  <option value="day">Day</option>
+                  <option value="warehouse">Warehouse</option>
+                  <option value="forest">Forest</option>
+                  <option value="apartment">Apartment</option>
+                  <option value="park">Park</option>
+                  <option value="lobby">Lobby</option>
                 </select>
               </div>
 
@@ -64,16 +69,23 @@ export default function Home() {
                   isGenerating ? "bg-blue-800 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
                 }`}
                 onClick={handleGenerateScene}
-                disabled={isGenerating}
+                disabled={isGenerating || !prompt.trim()}
               >
                 {isGenerating ? "Generating..." : "Generate Scene"}
               </button>
             </div>
+
+            {activePrompt && (
+              <div className="mt-6 p-3 bg-gray-800/50 rounded">
+                <h3 className="text-sm font-medium mb-1">Current Prompt:</h3>
+                <p className="text-xs text-gray-300">{activePrompt}</p>
+              </div>
+            )}
           </div>
 
           {/* Right panel for 3D canvas */}
           <div className="flex-1 h-full">
-            <ClientOnlyScene sceneType={sceneType} lighting={lighting} modelUrl={modelUrl} />
+            <PromptToModel prompt={activePrompt} lighting={lighting} />
           </div>
         </div>
       </div>
