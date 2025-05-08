@@ -1,136 +1,111 @@
 "use client"
 
-import { Canvas, useFrame } from "@react-three/fiber"
-import { OrbitControls, useGLTF, Environment, ContactShadows } from "@react-three/drei"
-import { useRef, useState } from "react"
-import type { Mesh, Group } from "three"
+import { Canvas } from "@react-three/fiber"
+import { OrbitControls, Environment, ContactShadows } from "@react-three/drei"
+import SafeFallbackModel from "./safe-fallback-model"
+import SafeModelLoader from "./safe-model-loader"
 
-// Model component that loads and displays a GLTF model
-function Model({ url, scale = 1, position = [0, 0, 0], rotation = [0, 0, 0] }) {
-  const groupRef = useRef<Group>(null)
-  const [modelLoaded, setModelLoaded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Load the model with error handling
-  const { scene, animations } = useGLTF(
-    url,
-    true,
-    // Success callback
-    () => setModelLoaded(true),
-    // Error callback
-    (e) => {
-      console.error("Error loading model:", e)
-      setError(e.message || "Failed to load model")
-    },
-  )
-
-  // Simple rotation animation
-  useFrame((state) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.2
-    }
-  })
-
-  // If there was an error loading the model, show a fallback cube
-  if (error) {
-    return <FallbackCube position={position} />
-  }
-
-  return (
-    <group ref={groupRef} position={position} rotation={rotation} scale={scale}>
-      <primitive object={scene.clone()} />
-    </group>
-  )
+interface YourSceneProps {
+  sceneType?: string
+  lighting?: string
 }
 
-// Fallback cube component
-function FallbackCube({ color = "#801650", position = [0, 0, 0] }) {
-  const meshRef = useRef<Mesh>(null)
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.5
-      meshRef.current.rotation.x = state.clock.elapsedTime * 0.2
-    }
-  })
-
-  return (
-    <mesh ref={meshRef} position={position}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  )
-}
-
-// Main scene component
-export default function YourScene({ sceneType = "abstract", lighting = "studio", modelUrl = "/models/duck.glb" }) {
-  // Convert scene type to model configuration
-  const getModelConfig = () => {
-    switch (sceneType.toLowerCase()) {
+export default function YourScene({ sceneType = "fantasy", lighting = "day" }: YourSceneProps) {
+  // Map scene type to model properties
+  const getModelProps = () => {
+    switch (sceneType) {
       case "fantasy":
         return {
-          url: modelUrl,
-          scale: 2,
-          position: [0, 0, 0],
+          models: [
+            { type: "cube", position: [-2, 0, 0], color: "#8844ff" },
+            { type: "sphere", position: [0, 0, 0], color: "#44ff88" },
+            { type: "torus", position: [2, 0, 0], color: "#ff4488" },
+          ],
         }
       case "sci-fi":
         return {
-          url: modelUrl,
-          scale: 1.5,
-          position: [0, 0.5, 0],
+          models: [
+            { type: "cylinder", position: [-2, 0, 0], color: "#44aaff" },
+            { type: "cube", position: [0, 0, 0], color: "#ffaa44" },
+            { type: "sphere", position: [2, 0, 0], color: "#ff44aa" },
+          ],
         }
-      case "nature":
-        return {
-          url: modelUrl,
-          scale: 2.5,
-          position: [0, -0.5, 0],
-        }
-      case "abstract":
       default:
         return {
-          url: modelUrl,
-          scale: 2,
-          position: [0, 0, 0],
+          models: [{ type: "cube", position: [0, 0, 0], color: "#ff00ff" }],
         }
     }
   }
 
-  // Get environment preset based on lighting setting
-  const getEnvironmentPreset = () => {
-    switch (lighting.toLowerCase()) {
+  // Map lighting to environment and light properties
+  const getLightingProps = () => {
+    switch (lighting) {
       case "day":
-        return "park"
+        return {
+          environment: "park",
+          intensity: 1,
+          ambientIntensity: 0.5,
+        }
       case "night":
-        return "night"
-      case "sunset":
-        return "sunset"
+        return {
+          environment: "night",
+          intensity: 0.5,
+          ambientIntensity: 0.2,
+        }
       case "studio":
+        return {
+          environment: "studio",
+          intensity: 1.5,
+          ambientIntensity: 0.8,
+        }
       default:
-        return "studio"
+        return {
+          environment: "sunset",
+          intensity: 1,
+          ambientIntensity: 0.5,
+        }
     }
   }
 
-  const modelConfig = getModelConfig()
-  const environmentPreset = getEnvironmentPreset()
+  const { models } = getModelProps()
+  const { environment, intensity, ambientIntensity } = getLightingProps()
 
   return (
     <Canvas shadows camera={{ position: [0, 2, 5], fov: 50 }}>
-      <color attach="background" args={["#050505"]} />
+      <color attach="background" args={["#000000"]} />
 
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={lighting === "day" ? 1 : 0.5} castShadow />
+      {/* Lighting */}
+      <ambientLight intensity={ambientIntensity} />
+      <directionalLight position={[10, 10, 5]} intensity={intensity} castShadow />
 
-      {/* Environment based on lighting setting */}
-      <Environment preset={environmentPreset} />
+      {/* Environment */}
+      <Environment preset={environment} />
 
-      {/* Main model with fallback */}
-      <Model url={modelConfig.url} scale={modelConfig.scale} position={modelConfig.position} />
+      {/* Models */}
+      {models.map((model, index) => (
+        <SafeFallbackModel
+          key={index}
+          type={model.type as any}
+          position={model.position as [number, number, number]}
+          color={model.color}
+          animate
+        />
+      ))}
 
-      {/* Ground with shadows */}
+      {/* Try to load a remote model but fall back gracefully */}
+      <SafeModelLoader
+        url="/models/duck.glb"
+        position={[0, 1, 0]}
+        scale={0.5}
+        fallbackType="random"
+        fallbackColor="#ffaa00"
+      />
+
+      {/* Ground */}
       <ContactShadows position={[0, -0.5, 0]} opacity={0.4} scale={10} blur={1.5} />
 
-      {/* Camera controls */}
-      <OrbitControls enableDamping dampingFactor={0.05} minDistance={2} maxDistance={10} />
+      {/* Controls */}
+      <OrbitControls enableDamping dampingFactor={0.05} />
     </Canvas>
   )
 }

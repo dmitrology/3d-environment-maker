@@ -1,51 +1,12 @@
 "use client"
 
-import React, { useState } from "react"
+import React from "react"
+
 import dynamic from "next/dynamic"
 import { Suspense } from "react"
 
-// Import the scene component with dynamic import and disable SSR
-const Scene = dynamic(() => import("./YourScene"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-900">
-      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-    </div>
-  ),
-})
-
-export default function ClientOnlyScene({
-  sceneType = "abstract",
-  lighting = "studio",
-  modelUrl = "/models/duck.glb",
-  onSceneLoaded = () => {},
-}) {
-  const [isLoading, setIsLoading] = useState(true)
-
-  const handleSceneLoaded = () => {
-    setIsLoading(false)
-    onSceneLoaded()
-  }
-
-  return (
-    <div className="w-full h-full">
-      <Suspense
-        fallback={
-          <div className="w-full h-full flex items-center justify-center bg-gray-900">
-            <div className="text-white">Loading 3D Scene...</div>
-          </div>
-        }
-      >
-        <ErrorBoundary>
-          <Scene sceneType={sceneType} lighting={lighting} modelUrl={modelUrl} onLoaded={handleSceneLoaded} />
-        </ErrorBoundary>
-      </Suspense>
-    </div>
-  )
-}
-
-// Simple error boundary component
-class ErrorBoundary extends React.Component {
+// Error boundary for R3F components
+class R3FErrorBoundary extends React.Component {
   constructor(props) {
     super(props)
     this.state = { hasError: false, error: null }
@@ -79,4 +40,32 @@ class ErrorBoundary extends React.Component {
 
     return this.props.children
   }
+}
+
+// Dynamic import of the scene component with SSR disabled
+const Scene = dynamic(() => import("./YourScene"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-900">
+      <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+    </div>
+  ),
+})
+
+export default function ClientOnlyScene(props) {
+  return (
+    <div className="w-full h-[600px]">
+      <R3FErrorBoundary>
+        <Suspense
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-gray-900">
+              <div className="text-white">Loading 3D Scene...</div>
+            </div>
+          }
+        >
+          <Scene {...props} />
+        </Suspense>
+      </R3FErrorBoundary>
+    </div>
+  )
 }

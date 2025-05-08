@@ -1,56 +1,63 @@
 "use client"
 
+import { useState, useEffect, useRef } from "react"
 import { useGLTF } from "@react-three/drei"
-import { useRef, useState } from "react"
-import { useFrame } from "@react-three/fiber"
-import type { Group } from "three"
+import { useThree } from "@react-three/fiber"
+import SafeFallbackModel from "./safe-fallback-model"
+
+interface SafeModelLoaderProps {
+  url: string
+  position?: [number, number, number]
+  rotation?: [number, number, number]
+  scale?: number | [number, number, number]
+  fallbackType?: "cube" | "sphere" | "torus" | "cylinder" | "random"
+  fallbackColor?: string
+}
 
 export default function SafeModelLoader({
   url,
-  scale = 1,
   position = [0, 0, 0],
   rotation = [0, 0, 0],
-  animate = true,
-  fallback = null,
-  onLoad = () => {},
-  onError = () => {},
-}) {
-  const groupRef = useRef<Group>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  scale = 1,
+  fallbackType = "cube",
+  fallbackColor = "#ff00ff",
+}: SafeModelLoaderProps) {
+  const [error, setError] = useState<Error | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { invalidate } = useThree()
+  const modelRef = useRef<any>(null)
 
-  // Load the model with error handling
-  const { scene, animations } = useGLTF(
-    url,
-    true,
-    // Success callback
-    () => {
-      setLoaded(true)
-      onLoad({ scene, animations })
-    },
-    // Error callback
-    (e) => {
-      console.error(`Error loading model ${url}:`, e)
-      setError(e.message || "Failed to load model")
-      onError(e)
-    },
-  )
+  // Load the model (useGLTF must be called unconditionally)
+  const gltf = useGLTF(url)
 
-  // Simple rotation animation if animate is true
-  useFrame((state) => {
-    if (animate && groupRef.current) {
-      groupRef.current.rotation.y = state.clock.elapsedTime * 0.2
+  useEffect(() => {
+    if (gltf) {
+      modelRef.current = gltf
+      setIsLoading(false)
+      invalidate() // Force a re-render
     }
-  })
+  }, [gltf, invalidate])
 
-  // If there was an error loading the model, show the fallback
-  if (error) {
-    return fallback
+  useEffect(() => {
+    if (!isLoading && !modelRef.current) {
+      console.error("Error loading model:", url)
+      setError(new Error(`Failed to load model from ${url}`))
+    }
+  }, [isLoading, url])
+
+  // If there's an error or we're still loading, show the fallback
+  if (error || isLoading) {
+    return (
+      <SafeFallbackModel
+        type={fallbackType}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+        color={fallbackColor}
+      />
+    )
   }
 
-  return (
-    <group ref={groupRef} position={position} rotation={rotation} scale={scale}>
-      {loaded && <primitive object={scene.clone()} />}
-    </group>
-  )
+  // If the model loaded successfully, show it
+  return <primitive object={modelRef.current.scene} position={position} rotation={rotation} scale={scale} />
 }
