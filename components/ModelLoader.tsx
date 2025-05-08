@@ -1,120 +1,63 @@
 "use client"
 
-import { Suspense, useEffect, useState, useRef } from "react"
+import { useLoader } from "@react-three/fiber"
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader"
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader"
-import { Html, useProgress } from "@react-three/drei"
-import { Box, Sphere } from "@react-three/drei"
-import type * as THREE from "three"
+import { Suspense, useEffect, useState } from "react"
+import { Box, Html } from "@react-three/drei"
 
-interface ModelLoaderProps {
-  url: string
-  position?: [number, number, number]
+type Props = {
+  modelUrl: string
   scale?: number | [number, number, number]
+  position?: [number, number, number]
   rotation?: [number, number, number]
-  fallbackType?: "box" | "sphere" | "none"
-  fallbackColor?: string
 }
 
-function LoadingIndicator() {
-  const { progress } = useProgress()
+function Fallback() {
   return (
     <Html center>
-      <div className="bg-black/80 text-white px-3 py-2 rounded-md text-sm">Loading... {Math.round(progress)}%</div>
+      <div style={{ color: "white", fontSize: "1rem" }}>Loading 3D model...</div>
     </Html>
   )
 }
 
-function ErrorDisplay({ error }: { error: Error }) {
+function ErrorModel() {
   return (
-    <Html center>
-      <div className="bg-black/80 text-red-500 px-3 py-2 rounded-md text-sm max-w-xs text-center">
-        Failed to load model: {error.message}
-      </div>
-    </Html>
-  )
-}
-
-function FallbackModel({
-  type = "box",
-  color = "#ff0000",
-  scale = 1,
-}: { type?: "box" | "sphere"; color?: string; scale?: number | [number, number, number] }) {
-  const scaleFactor = typeof scale === "number" ? [scale, scale, scale] : scale
-
-  return type === "sphere" ? (
-    <Sphere args={[1, 16, 16]} scale={scaleFactor}>
-      <meshStandardMaterial color={color} />
-    </Sphere>
-  ) : (
-    <Box args={[1, 1, 1]} scale={scaleFactor}>
-      <meshStandardMaterial color={color} />
+    <Box args={[1, 1, 1]}>
+      <meshStandardMaterial color="red" />
     </Box>
   )
 }
 
-export default function ModelLoader({
-  url,
-  position = [0, 0, 0],
-  scale = 1,
-  rotation = [0, 0, 0],
-  fallbackType = "box",
-  fallbackColor = "#ff4488",
-}: ModelLoaderProps) {
-  const [error, setError] = useState<Error | null>(null)
-  const [gltf, setGltf] = useState<THREE.Group | null>(null)
-  const gltfLoaderRef = useRef<GLTFLoader>(null)
+function GLTFModel({ modelUrl, scale = 1, position = [0, 0, 0], rotation = [0, 0, 0] }: Props) {
+  const [loadError, setLoadError] = useState(false)
+  const gltf = useLoader(GLTFLoader, modelUrl, (loader) => {
+    const dracoLoader = new DRACOLoader()
+    dracoLoader.setDecoderPath("/draco/") // Make sure decoder files are placed here!
+    loader.setDRACOLoader(dracoLoader)
+  })
 
   useEffect(() => {
-    const loader = new GLTFLoader()
-    const dracoLoader = new DRACOLoader()
-    dracoLoader.setDecoderPath("https://www.gstatic.com/draco/versioned/decoders/1.5.6/")
-    loader.setDRACOLoader(dracoLoader)
-    gltfLoaderRef.current = loader
+    if (!gltf?.scene) setLoadError(true)
+  }, [gltf])
 
-    loader.load(
-      url,
-      (gltf) => {
-        setGltf(gltf.scene)
-      },
-      undefined,
-      (error) => {
-        setError(new Error(`Failed to load model: ${error.message}`))
-      },
-    )
+  if (!gltf?.scene) return <ErrorModel />
 
-    return () => {
-      // Cleanup function: Dispose of the loader and its resources
-      if (gltfLoaderRef.current) {
-        gltfLoaderRef.current.manager.dispose()
-        gltfLoaderRef.current = null
-      }
-    }
-  }, [url])
-
-  // If we have an error, show fallback
-  if (error) {
-    return (
-      <>
-        <ErrorDisplay error={error} />
-        {fallbackType !== "none" && <FallbackModel type={fallbackType} color={fallbackColor} scale={scale} />}
-      </>
-    )
-  }
-
-  // If we have a model, show it
   return (
-    <Suspense fallback={<LoadingIndicator />}>
-      {gltf ? (
-        <primitive
-          object={gltf}
-          position={position}
-          scale={typeof scale === "number" ? [scale, scale, scale] : scale}
-          rotation={rotation}
-        />
-      ) : (
-        <FallbackModel type={fallbackType} color={fallbackColor} scale={scale} />
-      )}
+    <primitive
+      object={gltf.scene}
+      dispose={null}
+      scale={typeof scale === "number" ? [scale, scale, scale] : scale}
+      position={position}
+      rotation={rotation}
+    />
+  )
+}
+
+export default function ModelLoader(props: Props) {
+  return (
+    <Suspense fallback={<Fallback />}>
+      <GLTFModel {...props} />
     </Suspense>
   )
 }
