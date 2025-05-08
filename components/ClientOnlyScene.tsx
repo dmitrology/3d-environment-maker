@@ -1,7 +1,6 @@
 "use client"
 
-import React from "react"
-
+import React, { useState } from "react"
 import dynamic from "next/dynamic"
 import { Suspense } from "react"
 
@@ -15,7 +14,19 @@ const Scene = dynamic(() => import("./YourScene"), {
   ),
 })
 
-export default function ClientOnlyScene() {
+export default function ClientOnlyScene({
+  sceneType = "abstract",
+  lighting = "studio",
+  modelUrl = "/models/duck.glb",
+  onSceneLoaded = () => {},
+}) {
+  const [isLoading, setIsLoading] = useState(true)
+
+  const handleSceneLoaded = () => {
+    setIsLoading(false)
+    onSceneLoaded()
+  }
+
   return (
     <div className="w-full h-full">
       <Suspense
@@ -26,7 +37,7 @@ export default function ClientOnlyScene() {
         }
       >
         <ErrorBoundary>
-          <Scene />
+          <Scene sceneType={sceneType} lighting={lighting} modelUrl={modelUrl} onLoaded={handleSceneLoaded} />
         </ErrorBoundary>
       </Suspense>
     </div>

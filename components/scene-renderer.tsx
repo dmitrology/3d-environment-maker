@@ -1,57 +1,49 @@
 "use client"
 
-import { Suspense } from "react"
+import { createSafeR3fComponent } from "./safe-r3f-wrapper"
+import SafeModelLoader from "./safe-model-loader"
 import { Canvas } from "@react-three/fiber"
-import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei"
-import { SimpleScene } from "./simple-scene"
-import { ErrorBoundary } from "./error-boundary"
+import { OrbitControls, Environment, ContactShadows } from "@react-three/drei"
 
-// Loading component that uses Html from drei
-function Loader() {
+// Your original scene content
+function SceneContent({ scene }) {
+  if (!scene) return null
+
   return (
-    <Html center>
-      <div className="bg-black/80 text-white p-6 rounded-lg text-center">
-        <div className="text-2xl font-bold mb-2">Loading Scene</div>
-        <div className="w-48 h-2 bg-gray-700 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full w-1/2"></div>
-        </div>
-        <div className="mt-2">Loading models...</div>
-      </div>
-    </Html>
+    <Canvas shadows camera={{ position: [0, 2, 5], fov: 50 }}>
+      <color attach="background" args={["#050505"]} />
+
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+
+      <Environment preset="sunset" />
+
+      {/* Use SafeModelLoader for each model in the scene */}
+      {scene.models?.map((model, index) => (
+        <SafeModelLoader
+          key={index}
+          url={model.url || "/models/duck.glb"}
+          position={model.position || [0, 0, 0]}
+          scale={model.scale || 1}
+          fallback={
+            <mesh position={model.position || [0, 0, 0]}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshStandardMaterial color="#801650" />
+            </mesh>
+          }
+        />
+      ))}
+
+      <ContactShadows position={[0, -0.5, 0]} opacity={0.4} scale={10} blur={1.5} />
+      <OrbitControls enableDamping dampingFactor={0.05} />
+    </Canvas>
   )
 }
 
-// Fallback component for errors that uses Html from drei
-function ThreeErrorFallback({ error }: { error: Error }) {
-  return (
-    <Html center>
-      <div className="bg-red-900/80 text-white p-6 rounded-lg max-w-md">
-        <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-        <p className="mb-4">{error.message}</p>
-        <p className="text-sm opacity-80">Try refreshing the page or using a different prompt.</p>
-      </div>
-    </Html>
-  )
-}
+// Create a safe version of the scene
+const SafeSceneRenderer = createSafeR3fComponent(SceneContent)
 
-interface SceneRendererProps {
-  prompt: string
-}
-
-export function SceneRenderer({ prompt }: SceneRendererProps) {
-  return (
-    <div className="w-full h-[600px] relative">
-      <ErrorBoundary>
-        <Canvas shadows>
-          <PerspectiveCamera makeDefault position={[0, 5, 15]} fov={50} />
-          <Suspense fallback={<Loader />}>
-            <SimpleScene prompt={prompt} />
-            <Environment preset="city" />
-            <OrbitControls enablePan={true} enableZoom={true} enableRotate={true} minDistance={5} maxDistance={50} />
-          </Suspense>
-        </Canvas>
-      </ErrorBoundary>
-      <div className="absolute bottom-2 right-2 text-xs text-white/50">Visual Alchemy Engine</div>
-    </div>
-  )
+// Export the wrapped component
+export function SceneRenderer({ scene }) {
+  return <SafeSceneRenderer scene={scene} />
 }

@@ -1,6 +1,24 @@
+"use client"
+
+import { useState } from "react"
 import ClientOnlyScene from "@/components/ClientOnlyScene"
 
 export default function Home() {
+  const [sceneType, setSceneType] = useState("fantasy")
+  const [lighting, setLighting] = useState("day")
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [modelUrl, setModelUrl] = useState("/models/duck.glb")
+
+  // Handle scene generation
+  const handleGenerateScene = () => {
+    setIsGenerating(true)
+
+    // Simulate API call or processing time
+    setTimeout(() => {
+      setIsGenerating(false)
+    }, 1000)
+  }
+
   return (
     <div className="min-h-screen bg-black">
       <div className="flex flex-col h-screen">
@@ -15,33 +33,47 @@ export default function Home() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm mb-1">Scene Type</label>
-                <select className="w-full bg-gray-800 rounded p-2 text-sm">
-                  <option>Abstract</option>
-                  <option>Nature</option>
-                  <option>Sci-Fi</option>
-                  <option>Fantasy</option>
+                <select
+                  className="w-full bg-gray-800 rounded p-2 text-sm"
+                  value={sceneType}
+                  onChange={(e) => setSceneType(e.target.value)}
+                >
+                  <option value="abstract">Abstract</option>
+                  <option value="nature">Nature</option>
+                  <option value="sci-fi">Sci-Fi</option>
+                  <option value="fantasy">Fantasy</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm mb-1">Lighting</label>
-                <select className="w-full bg-gray-800 rounded p-2 text-sm">
-                  <option>Sunset</option>
-                  <option>Studio</option>
-                  <option>Night</option>
-                  <option>Day</option>
+                <select
+                  className="w-full bg-gray-800 rounded p-2 text-sm"
+                  value={lighting}
+                  onChange={(e) => setLighting(e.target.value)}
+                >
+                  <option value="sunset">Sunset</option>
+                  <option value="studio">Studio</option>
+                  <option value="night">Night</option>
+                  <option value="day">Day</option>
                 </select>
               </div>
 
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded">
-                Generate Scene
+              <button
+                className={`w-full py-2 px-4 rounded text-white ${
+                  isGenerating ? "bg-blue-800 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                }`}
+                onClick={handleGenerateScene}
+                disabled={isGenerating}
+              >
+                {isGenerating ? "Generating..." : "Generate Scene"}
               </button>
             </div>
           </div>
 
           {/* Right panel for 3D canvas */}
           <div className="flex-1 h-full">
-            <ClientOnlyScene />
+            <ClientOnlyScene sceneType={sceneType} lighting={lighting} modelUrl={modelUrl} />
           </div>
         </div>
       </div>

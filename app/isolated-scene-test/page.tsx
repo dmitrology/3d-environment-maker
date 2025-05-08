@@ -1,45 +1,52 @@
 "use client"
 
 import { useState } from "react"
-import dynamic from "next/dynamic"
-
-// Import the scene component with SSR disabled
-const IsolatedScene = dynamic(() => import("@/components/isolated-scene"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[500px] flex items-center justify-center bg-gray-900 text-white">Loading 3D scene...</div>
-  ),
-})
+import { IsolatedScene } from "@/components/isolated-scene"
+import SafeR3FWrapper from "@/components/safe-r3f-wrapper"
 
 export default function IsolatedSceneTestPage() {
-  const [prompt, setPrompt] = useState("forest with a house and a car")
+  const [environment, setEnvironment] = useState("sunset")
+
+  const testModels = [
+    { url: "/models/duck.glb", position: [0, 0, 0], scale: 2 },
+    { url: "/models/duck.glb", position: [-2, 0, -2], scale: 1 },
+  ]
 
   return (
-    <div className="p-4 bg-gray-900 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-4">Isolated Scene Test</h1>
-      <p className="mb-4 text-gray-400">This page uses a completely isolated R3F setup to avoid SSR and hook issues.</p>
+    <div className="min-h-screen bg-black">
+      <div className="flex flex-col h-screen">
+        <header className="border-b border-gray-800 p-4">
+          <h1 className="text-xl font-bold text-white">Isolated Scene Test</h1>
+        </header>
 
-      <div className="mb-4">
-        <label className="block mb-2">Scene Prompt:</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            className="flex-1 px-3 py-2 bg-gray-800 rounded border border-gray-700 text-white"
-          />
-          <button onClick={() => setPrompt(prompt)} className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">
-            Generate
-          </button>
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left panel for controls */}
+          <div className="w-64 border-r border-gray-800 p-4 text-white">
+            <h2 className="font-medium mb-4">Scene Controls</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm mb-1">Environment</label>
+                <select
+                  className="w-full bg-gray-800 rounded p-2 text-sm"
+                  value={environment}
+                  onChange={(e) => setEnvironment(e.target.value)}
+                >
+                  <option value="sunset">Sunset</option>
+                  <option value="studio">Studio</option>
+                  <option value="night">Night</option>
+                  <option value="park">Park</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Right panel for 3D canvas */}
+          <div className="flex-1 h-full">
+            <SafeR3FWrapper>
+              <IsolatedScene models={testModels} environment={environment} />
+            </SafeR3FWrapper>
+          </div>
         </div>
-      </div>
-
-      <div className="rounded-lg overflow-hidden border border-gray-700">
-        <IsolatedScene prompt={prompt} />
-      </div>
-
-      <div className="mt-4 text-sm text-gray-400">
-        <p>Try different prompts like "robot army" or "forest with cats"</p>
       </div>
     </div>
   )
