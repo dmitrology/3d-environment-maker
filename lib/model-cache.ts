@@ -1,88 +1,102 @@
-"use server"
+/**
+ * Simple in-memory cache for 3D models to avoid repeated API calls
+ */
 
-import type { ModelMetadata, ModelCategory } from "@/lib/model-types"
+interface CachedModel {
+  data: any
+  timestamp: number
+}
 
-// Constants
-const CACHE_TTL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+class ModelCache {
+  private cache: Map<string, CachedModel>
+  private maxCacheSize: number
+  private cacheDuration: number // in milliseconds
 
-// Mock data for testing
-const MOCK_MODELS: ModelMetadata[] = [
-  {
-    id: "model1",
-    name: "Crystal",
-    category: "props",
-    tags: ["crystal", "gem", "magic", "fantasy"],
-    url: "/sparkling-crystal.png",
-    thumbnailUrl: "/placeholder.svg?key=46dda",
-    author: "Test Author",
-    sourceUrl: "https://example.com/model1",
-    createdAt: new Date(),
-  },
-  {
-    id: "model2",
-    name: "Low Poly Tree",
-    category: "props",
-    tags: ["tree", "nature", "forest", "plant"],
-    url: "/solitary-oak.png",
-    thumbnailUrl: "/placeholder.svg?key=ymqgp",
-    author: "Test Author",
-    sourceUrl: "https://example.com/model2",
-    createdAt: new Date(),
-  },
-  {
-    id: "model3",
-    name: "Stylized Planet",
-    category: "backgrounds",
-    tags: ["planet", "space", "sci-fi", "cosmic"],
-    url: "/serene-blue-planet.png",
-    thumbnailUrl: "/placeholder.svg?key=q8pia",
-    author: "Test Author",
-    sourceUrl: "https://example.com/model3",
-    createdAt: new Date(),
-  },
-  {
-    id: "model4",
-    name: "Robot Toy",
-    category: "characters",
-    tags: ["robot", "toy", "sci-fi", "character"],
-    url: "/futuristic-helper-robot.png",
-    thumbnailUrl: "/placeholder.svg?key=6v59s",
-    author: "Test Author",
-    sourceUrl: "https://example.com/model4",
-    createdAt: new Date(),
-  },
-]
+  constructor(maxSize = 20, cacheDurationMinutes = 30) {
+    this.cache = new Map()
+    this.maxCacheSize = maxSize
+    this.cacheDuration = cacheDurationMinutes * 60 * 1000
+  }
 
-// Function to get all models
-export async function getModels(): Promise<ModelMetadata[]> {
-  try {
-    // For now, just return mock data
-    // In a real implementation, this would fetch from KV or other storage
-    return MOCK_MODELS
-  } catch (error) {
-    console.error("Error getting models:", error)
-    return []
+  /**
+   * Get a model from the cache
+   */
+  get(key: string): any | null {
+    const cached = this.cache.get(key)
+
+    if (!cached) return null
+
+    // Check if the cached item has expired
+    if (Date.now() - cached.timestamp > this.cacheDuration) {
+      this.cache.delete(key)
+      return null
+    }
+
+    return cached.data
+  }
+
+  /**
+   * Store a model in the cache
+   */
+  set(key: string, data: any): void {
+    // If cache is full, remove the oldest entry
+    if (this.cache.size >= this.maxCacheSize) {
+      const oldestKey = this.getOldestKey()
+      if (oldestKey) this.cache.delete(oldestKey)
+    }
+
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+    })
+  }
+
+  /**
+   * Find the oldest entry in the cache
+   */
+  private getOldestKey(): string | null {
+    let oldestKey: string | null = null
+    let oldestTime = Number.POSITIVE_INFINITY
+
+    for (const [key, value] of this.cache.entries()) {
+      if (value.timestamp < oldestTime) {
+        oldestTime = value.timestamp
+        oldestKey = key
+      }
+    }
+
+    return oldestKey
+  }
+
+  /**
+   * Clear expired items from the cache
+   */
+  cleanup(): void {
+    const now = Date.now()
+
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.timestamp > this.cacheDuration) {
+        this.cache.delete(key)
+      }
+    }
+  }
+
+  /**
+   * Get the current cache size
+   */
+  size(): number {
+    return this.cache.size
+  }
+
+  /**
+   * Clear the entire cache
+   */
+  clear(): void {
+    this.cache.clear()
   }
 }
 
-// Function to get models by category
-export async function getModelsByCategory(category: ModelCategory): Promise<ModelMetadata[]> {
-  try {
-    // Filter mock data by category
-    return MOCK_MODELS.filter((model) => model.category === category)
-  } catch (error) {
-    console.error(`Error getting models for category ${category}:`, error)
-    return []
-  }
-}
+// Create a singleton instance
+const modelCache = new ModelCache()
 
-// Function to get a model by ID
-export async function getModelById(id: string): Promise<ModelMetadata | null> {
-  try {
-    // Find model by ID in mock data
-    return MOCK_MODELS.find((model) => model.id === id) || null
-  } catch (error) {
-    console.error(`Error getting model ${id}:`, error)
-    return null
-  }
-}
+export default modelCache
